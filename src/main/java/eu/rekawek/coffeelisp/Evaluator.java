@@ -21,10 +21,27 @@ import static eu.rekawek.coffeelisp.functions.ListFunctions.pair;
 
 public class Evaluator {
 
+    /**
+     * There is an S-function apply with the property that if f is an S-expression
+     * for an S-function f' and args is a list of arguments of the form (arg1, · · · , argn),
+     * where arg1, · · · , argn are arbitrary Sexpressions, then apply[f; args] and
+     * f'[arg1; · · · ; argn] are defined for the same
+     * values of arg1, · · · , argn, and are equal when defined.
+     * <br>
+     * The S-function apply is defined by
+     * <pre>
+     * apply[f; args] = eval[cons[f; appq[args]]; NIL]
+     * </pre>
+     */
     public static SExpression apply(SExpression f, SExpression args) {
         return eval(cons(f, appq(args)), SExpression.NIL);
     }
 
+    /**
+     * <pre>
+     * appq[m] = [null[m] → NIL; T → cons[list[QUOTE; car[m]]; appq[cdr[m]]]]
+     * </pre>
+     */
     private static SExpression appq(SExpression m) {
         if (isNullBool(m)) {
             return SExpression.NIL;
@@ -33,37 +50,42 @@ public class Evaluator {
         }
     }
 
-    private static SExpression eval(SExpression e, SExpression a) {
-        if (atomBool(e)) {
-            return assoc(e, a);
-        }
-        if (atomBool(car(e))) {
-            if (eqBool(car(e), "QUOTE")) {
-                return cadr(e);
-            } else if (eqBool(car(e), "ATOM")) {
-                return atom(eval(cadr(e), a));
-            } else if (eqBool(car(e), "EQ")) {
-                return eq(eval(cadr(e), a), eval(caddr(e), a));
-            } else if (eqBool(car(e), "COND")) {
-                return evcon(cdr(e), a);
-            } else if (eqBool(car(e), "CAR")) {
-                return car(eval(cadr(e), a));
-            } else if (eqBool(car(e), "CDR")) {
-                return cdr(eval(cadr(e), a));
-            } else if (eqBool(car(e), "CONS")) {
-                return cons(eval(cadr(e), a), eval(caddr(e), a));
-            } else {
-                return eval(cons(assoc(car(e), a), evlis(cdr(e), a)), a);
+    private static SExpression eval(SExpression e, SExpression a) {                // eval[e; a] = [
+        if (atomBool(e)) {                                                         //
+            return assoc(e, a);                                                    // atom [e] → assoc [e; a];
+        }                                                                          //
+        if (atomBool(car(e))) {                                                    // atom [car [e]] → [
+            if (eqBool(car(e), "QUOTE")) {                                      // eq [car [e]; QUOTE]
+                return cadr(e);                                                    //   → cadr [e];
+            } else if (eqBool(car(e), "ATOM")) {                                // eq [car [e]; ATOM]
+                return atom(eval(cadr(e), a));                                     //   → atom [eval [cadr [e]; a]
+            } else if (eqBool(car(e), "EQ")) {                                  // eq [car [e]; EQ]
+                return eq(eval(cadr(e), a), eval(caddr(e), a));                    //   → [eval [cadr [e]; a] = eval [caddr [e]; a]];
+            } else if (eqBool(car(e), "COND")) {                                // eq [car [e]; COND]
+                return evcon(cdr(e), a);                                           //   → evcon [cdr [e]; a];
+            } else if (eqBool(car(e), "CAR")) {                                 // eq [car [e]; CAR]
+                return car(eval(cadr(e), a));                                      //   → car [eval [cadr [e]; a]];
+            } else if (eqBool(car(e), "CDR")) {                                 // eq [car [e]; CDR]
+                return cdr(eval(cadr(e), a));                                      //   → cdr [eval [cadr [e]; a]];
+            } else if (eqBool(car(e), "CONS")) {                                // eq [car [e]; CONS]
+                return cons(eval(cadr(e), a), eval(caddr(e), a));                  //   → cons [eval [cadr [e]; a]; eval [caddr [e]; a ]]
+            } else {                                                               // T
+                return eval(cons(assoc(car(e), a), evlis(cdr(e), a)), a);          //   → eval [cons [assoc [car [e]; a]; evlis [cdr [e]; a]]; a]];
             }
-        } else if (eqBool(caar(e), "LABEL")) {
-            return eval(cons(caddar(e), cdr(e)), cons(list(cadar(e), car(e)), a));
-        } else if (eqBool(caar(e), "LAMBDA")) {
-            return eval(caddar(e), append(pair(cadar(e), evlis(cdr(e), a)), a));
+        } else if (eqBool(caar(e), "LABEL")) {                                  // eq [caar [e]; LABEL]
+            return eval(cons(caddar(e), cdr(e)), cons(list(cadar(e), car(e)), a)); //   → eval [cons [caddar [e]; cdr [e]]; cons [list [cadar [e]; car [e]; a]];
+        } else if (eqBool(caar(e), "LAMBDA")) {                                 // eq [caar [e]; LAMBDA]
+            return eval(caddar(e), append(pair(cadar(e), evlis(cdr(e), a)), a));   //   → eval [caddar [e]; append [pair [cadar [e]; evlis [cdr [e]; a]; a]]]
         } else {
             return SExpression.NIL;
         }
     }
 
+    /**
+     * <pre>
+     * evcon[c; a] = [eval[caar[c]; a] → eval[cadar[c]; a]; T → evcon[cdr[c]; a]]
+     * </pre>
+     */
     private static SExpression evcon(SExpression c, SExpression a) {
         if (toBoolean(eval(caar(c), a))) {
             return eval(cadar(c), a);
@@ -72,6 +94,11 @@ public class Evaluator {
         }
     }
 
+    /**
+     * <pre>
+     * evlis[m; a] = [null[m] → NIL; T → cons[eval[car[m]; a]; evlis[cdr[m]; a]]]
+     * </pre>
+     */
     private static SExpression evlis(SExpression m, SExpression a) {
         if (isNullBool(m)) {
             return SExpression.NIL;
